@@ -67,116 +67,120 @@ def save(name, data):
 
 
 def air_horn(tempo):
-    t, u = clock(1.48, tempo)
-    drift = 7 * np.exp(-u * 16)
-    a = phase(349 + drift + 1.7 * np.sin(2 * np.pi * 5.1 * t))
-    b = phase(440 + drift + 1.4 * np.sin(2 * np.pi * 4.7 * t))
-    brass = sum((np.sin(k * a) + .74 * np.sin(k * b)) / k ** 1.25
-                for k in range(1, 9))
-    grit = noise(len(t), 4101, low=350, high=2800)
-    bursts = np.zeros_like(t)
-    for start, length in [(.025, .62), (.72, .74)]:
+    t, u = clock(1.62, tempo)
+    drift = np.zeros_like(t)
+    for start in [.02, .43, .83]:
         local = u - start
-        bursts += np.where((local >= 0) & (local < length),
-                           envelope(local, length, .028, .14), 0)
-    body = bursts * (.42 * brass + .1 * grit)
-    return echo(sosfilt(butter(2, 3400, fs=RATE, output="sos"), body), .055, .13)
+        drift += np.where(local >= 0, 12 * np.exp(-np.maximum(local, 0) * 21), 0)
+    a = phase(315 + drift + 2.2 * np.sin(2 * np.pi * 5.0 * t))
+    b = phase(396 + drift + 1.6 * np.sin(2 * np.pi * 4.6 * t))
+    brass = sum((np.sin(k * a) + .83 * np.sin(k * b)) / k ** 1.17
+                for k in range(1, 10))
+    grit = noise(len(t), 5101, low=420, high=3100)
+    bursts = np.zeros_like(t)
+    for start, length, gain in [(.02, .34, .90), (.43, .33, .94), (.83, .75, 1.0)]:
+        local = u - start
+        bursts += gain * np.where((local >= 0) & (local < length),
+                                  envelope(local, length, .018, .10), 0)
+    body = bursts * (.46 * brass + .14 * grit)
+    return echo(sosfilt(butter(2, 3200, fs=RATE, output="sos"), body), .052, .13)
 
 
 def fart(tempo):
     """Fluttering midrange raspberry, audible even on a tiny phone speaker."""
-    t, u = clock(1.26, tempo)
-    frequency = 155 - 54 * np.clip(u / 1.26, 0, 1)
-    frequency += 11 * np.sin(2 * np.pi * 4.5 * u) * np.exp(-u * 1.2)
+    t, u = clock(1.48, tempo)
+    frequency = 162 - 59 * np.clip(u / 1.48, 0, 1)
+    frequency += 13 * np.sin(2 * np.pi * 5.4 * u) * np.exp(-u * 1.1)
     p = phase(frequency)
-    harmonics = sum(np.sin(k * p + .14 * np.sin(2 * np.pi * 19 * u)) / k ** .85
-                    for k in range(1, 10))
-    flutter = .46 + .54 * (.5 + .5 * np.sin(2 * np.pi * (19 * u + 4 * u * u))) ** 3
-    rasp = noise(len(t), 4102, low=260, high=1900)
-    pop = noise(len(t), 4103, low=330, high=2200)
+    harmonics = sum(np.sin(k * p + .2 * np.sin(2 * np.pi * 17 * u)) / k ** .83
+                    for k in range(1, 11))
+    flutter = .43 + .57 * (.5 + .5 * np.sin(2 * np.pi * (17 * u + 5 * u * u))) ** 3
+    rasp = noise(len(t), 5102, low=270, high=2200)
+    pop = noise(len(t), 5103, low=350, high=2500)
     bursts = np.zeros_like(t)
-    for start, length, strength in [(0, .69, 1.), (.74, .47, .86)]:
+    for start, length, strength in [(0, .56, .83), (.61, .58, 1.), (1.23, .19, .45)]:
         local = u - start
         bursts += strength * np.where((local >= 0) & (local < length),
-                                       envelope(local, length, .013, .18), 0)
+                                       envelope(local, length, .008, .12), 0)
     clicks = np.zeros_like(t)
-    for start in [.012, .75]:
+    for start in [.01, .61, 1.23]:
         local = u - start
-        clicks += np.where((local >= 0) & (local < .055),
-                           np.exp(-np.maximum(local, 0) / .017), 0)
-    body = bursts * (.72 * harmonics * flutter + .53 * rasp * (.5 + flutter))
-    body += .07 * pop * clicks
+        clicks += np.where((local >= 0) & (local < .045),
+                           np.exp(-np.maximum(local, 0) / .013), 0)
+    body = bursts * (.76 * harmonics * flutter + .55 * rasp * (.5 + flutter))
+    body += .08 * pop * clicks
     body = sosfilt(butter(2, 90, btype="highpass", fs=RATE, output="sos"), body)
-    return np.tanh(body * 2.4)
+    return np.tanh(body * 2.1)
 
 
 def sad_trombone(tempo):
-    t, u = clock(2.1, tempo)
+    t, u = clock(2.28, tempo)
     result = np.zeros_like(t)
-    notes = [(.02, .34, 233), (.42, .35, 207), (.84, .35, 185), (1.25, .79, 139)]
+    breath = noise(len(t), 5104, low=250, high=2300)
+    notes = [(.02, .37, 247), (.44, .39, 220), (.88, .40, 196), (1.34, .87, 147)]
     for start, length, tone in notes:
         local = u - start
         mask = (local >= 0) & (local < length)
         v = local[mask]
-        f = tone * (1 - .055 * np.clip(v / length, 0, 1))
-        f *= 1 + .006 * np.sin(2 * np.pi * 4.8 * t[mask])
+        f = tone * (1 - .075 * np.clip(v / length, 0, 1) ** 2)
+        f *= 1 + .005 * np.sin(2 * np.pi * 5.2 * t[mask])
         p = phase(f)
-        brass = sum(np.sin(k * p) / k ** 1.2 for k in range(1, 8))
-        wah = .76 + .24 * np.sin(2 * np.pi * 2.9 * v)
-        result[mask] = .44 * brass * wah * envelope(v, length, .018, .09)
-    return echo(sosfilt(butter(2, 2900, fs=RATE, output="sos"), result), .072, .16)
+        brass = sum(np.sin(k * p) / k ** 1.26 for k in range(1, 9))
+        wah = .73 + .27 * np.sin(2 * np.pi * 2.7 * v)
+        result[mask] = (.44 * brass * wah + .07 * breath[mask]) * envelope(v, length, .024, .11)
+    return echo(sosfilt(butter(2, 2800, fs=RATE, output="sos"), result), .079, .14)
 
 
 def ba_dum_tss(tempo):
-    t, u = clock(1.35, tempo)
+    t, u = clock(1.46, tempo)
     result = np.zeros_like(t)
-    for start, initial, final, length in [(.025, 162, 75, .24), (.33, 146, 72, .27)]:
+    for start, initial, final, length in [(.025, 169, 81, .25), (.32, 152, 77, .29)]:
         local = u - start
         mask = (local >= 0) & (local < length)
         v = local[mask]
         f = final + (initial - final) * np.exp(-v / .044)
         p = phase(f)
-        result[mask] += .78 * (np.sin(p) + .28 * np.sin(2 * p)) * np.exp(-v / .12)
-        result[mask] += .045 * np.sin(2 * np.pi * 790 * t[mask]) * np.exp(-v / .012)
-    snare = noise(len(t), 4104, low=350, high=3600)
-    cymbal = noise(len(t), 4105, low=1800, high=6800)
-    local = u - .66
+        result[mask] += .8 * (np.sin(p) + .34 * np.sin(2 * p)) * np.exp(-v / .13)
+        result[mask] += .052 * np.sin(2 * np.pi * 790 * t[mask]) * np.exp(-v / .013)
+    snare = noise(len(t), 5105, low=420, high=3900)
+    cymbal = noise(len(t), 5106, low=1700, high=7000)
+    local = u - .65
     mask = local >= 0
-    result[mask] += .85 * snare[mask] * np.exp(-local[mask] / .17)
-    result[mask] += .7 * cymbal[mask] * np.exp(-local[mask] / .35)
-    return np.tanh(result * 1.55) * envelope(u, 1.35, .003, .11)
+    result[mask] += .9 * snare[mask] * np.exp(-local[mask] / .18)
+    result[mask] += .77 * cymbal[mask] * np.exp(-local[mask] / .39)
+    return np.tanh(result * 1.5) * envelope(u, 1.46, .003, .12)
 
 
 def crickets(tempo):
-    t, u = clock(2.12, tempo)
+    t, u = clock(2.36, tempo)
     chirps = np.zeros_like(t)
-    for start in [.08, .56, 1.07, 1.57]:
-        for beat in range(4):
-            local = u - start - beat * .063
-            mask = (local >= 0) & (local < .052)
+    for start, count in [(.23, 3), (.73, 4), (1.24, 3), (1.77, 4)]:
+        for beat in range(count):
+            local = u - start - beat * .07
+            mask = (local >= 0) & (local < .055)
             v = local[mask]
-            carrier = np.sin(2 * np.pi * (1960 * t[mask] + 110 * v * v))
-            carrier += .23 * np.sin(2 * np.pi * 2440 * t[mask])
-            chirps[mask] += .47 * carrier * np.sin(np.pi * v / .052) ** 2
-    bed = noise(len(t), 4106, low=600, high=3000)
-    bed *= .019 * (.55 + .45 * np.sin(2 * np.pi * .6 * u))
-    return echo(chirps * envelope(u, 2.12, .01, .13) + bed, .029, .13)
+            carrier = np.sin(2 * np.pi * (1850 * t[mask] + 135 * v * v))
+            carrier += .27 * np.sin(2 * np.pi * 2290 * t[mask])
+            chirps[mask] += .52 * carrier * np.sin(np.pi * v / .055) ** 2
+    bed = noise(len(t), 5107, low=850, high=3500)
+    bed *= .018 * (.5 + .5 * np.sin(2 * np.pi * .7 * u))
+    return echo(chirps * envelope(u, 2.36, .01, .19) + bed, .031, .12)
 
 
 def laser(tempo):
-    t, u = clock(1.15, tempo)
+    t, u = clock(1.31, tempo)
     zaps = np.zeros_like(t)
-    fizz = noise(len(t), 4107, low=750, high=4400)
-    for start in [.04, .49]:
+    fizz = noise(len(t), 5108, low=900, high=5000)
+    for start, strength in [(.04, .88), (.42, .97), (.80, 1.)]:
         local = u - start
-        mask = (local >= 0) & (local < .34)
+        mask = (local >= 0) & (local < .31)
         v = local[mask]
-        f = 245 + 810 * np.exp(-v / .09)
+        f = 255 + 820 * np.exp(-v / .075)
         p = phase(f)
-        attack = np.exp(-v / .145) * np.clip(v / .004, 0, 1)
-        zaps[mask] += (.62 * np.sin(p) + .25 * np.sin(2 * p)) * attack
-        zaps[mask] += .18 * fizz[mask] * np.exp(-v / .075)
-    return echo(zaps * envelope(u, 1.15, .004, .12), .075, .16)
+        attack = np.exp(-v / .135) * np.clip(v / .004, 0, 1)
+        zaps[mask] += strength * (.64 * np.sin(p) + .27 * np.sin(2 * p)) * attack
+        zaps[mask] += strength * .19 * fizz[mask] * np.exp(-v / .075)
+    return echo(zaps * envelope(u, 1.31, .004, .16), .071, .16)
 
 
 EFFECTS = {

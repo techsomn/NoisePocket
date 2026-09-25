@@ -105,20 +105,21 @@ class _SoundboardScreenState extends State<SoundboardScreen>
   Future<void> _audioQueue = Future.value();
   int _request = 0;
   int? _playing;
+  bool _pendingPlay = false;
   double _volume = .7;
   PlaybackSpeed _speed = PlaybackSpeed.normal;
   bool _settingsTouched = false;
   bool _mayRequestAds = false;
   bool _adsInitializing = false;
   bool _showPrivacyOptions = false;
-  bool _showHint = true;
+  bool _hasPlayed = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _completion = _player.onPlayerComplete.listen((_) {
-      if (mounted && _player.state == PlayerState.completed) {
+      if (mounted && !_pendingPlay && _player.state == PlayerState.completed) {
         setState(() => _playing = null);
       }
     });
@@ -234,8 +235,13 @@ class _SoundboardScreenState extends State<SoundboardScreen>
 
   void _play(int index, {bool haptic = true}) {
     if (haptic) HapticFeedback.selectionClick();
-    if (_showHint) setState(() => _showHint = false);
     final request = ++_request;
+    final selectedSpeed = _speed;
+    _pendingPlay = true;
+    setState(() {
+      _hasPlayed = true;
+      _playing = index;
+    });
     _audioQueue = _audioQueue
         .catchError((Object e) {
           debugPrint('Audio operation: $e');
@@ -245,18 +251,20 @@ class _SoundboardScreenState extends State<SoundboardScreen>
           await _player.stop();
           if (!mounted || request != _request) return;
           await _player.play(
-            AssetSource(soundAsset(sounds[index], _speed)),
+            AssetSource(soundAsset(sounds[index], selectedSpeed)),
             volume: _volume,
           );
           if (!mounted || request != _request) {
             await _player.stop();
             return;
           }
-          setState(() => _playing = index);
+          _pendingPlay = false;
+          if (_playing != index) setState(() => _playing = index);
         })
         .catchError((Object e) {
           debugPrint('Could not play sound: $e');
           if (mounted && request == _request) {
+            _pendingPlay = false;
             setState(() => _playing = null);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -267,8 +275,19 @@ class _SoundboardScreenState extends State<SoundboardScreen>
         });
   }
 
+  void _surprise() {
+    final current = _playing;
+    if (current == null) {
+      _play(_random.nextInt(sounds.length));
+      return;
+    }
+    final pick = _random.nextInt(sounds.length - 1);
+    _play(pick >= current ? pick + 1 : pick);
+  }
+
   void _stop() {
     ++_request;
+    _pendingPlay = false;
     if (mounted) setState(() => _playing = null);
     _audioQueue = _audioQueue
         .catchError((Object e) {
@@ -468,6 +487,18 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                const Center(
+                  child: Text(
+                    'NOISE POCKET  •  V2.0',
+                    style: TextStyle(
+                      color: Color(0xFF929498),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -478,6 +509,7 @@ class _SoundboardScreenState extends State<SoundboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final activeSound = _playing == null ? null : sounds[_playing!];
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -496,11 +528,11 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                     final width = constraints.maxWidth;
                     final side = width < 370 ? 14.0 : 20.0;
                     final padHeight =
-                        ((constraints.maxHeight - (_showHint ? 265 : 220)) / 3)
-                            .clamp(122.0, 145.0)
+                        ((constraints.maxHeight - 285) / 3)
+                            .clamp(128.0, 150.0)
                             .toDouble();
                     return SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(side, 20, side, 16),
+                      padding: EdgeInsets.fromLTRB(side, 18, side, 18),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -547,51 +579,93 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                             'Small app. Big reactions.',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 18,
-                              letterSpacing: -.35,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 22,
+                              letterSpacing: -.6,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOut,
-                            child: _showHint
-                                ? Container(
-                                    height: 46,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 15,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2B3030),
-                                      borderRadius: BorderRadius.circular(15),
-                                      border: Border.all(
-                                        color: const Color(0xFF41494A),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.touch_app_rounded,
-                                            size: 22, color: Color(0xFFD4FF22)),
-                                        SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            'Tap any pad to make some noise',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
+                          const SizedBox(height: 5),
+                          const Text(
+                            'Six sounds. Infinite bad timing.',
+                            style: TextStyle(
+                              color: Color(0xFFADAFB4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          if (_showHint) const SizedBox(height: 9),
+                          const SizedBox(height: 18),
+                          Container(
+                            height: 60,
+                            padding: const EdgeInsets.symmetric(horizontal: 13),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF292C2E),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: const Color(0xFF44494B)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFD4FF22)
+                                        .withValues(alpha: .16),
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  child: Icon(
+                                    activeSound?.icon ?? Icons.touch_app_rounded,
+                                    color: const Color(0xFFD4FF22),
+                                    size: 21,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        activeSound == null
+                                            ? 'READY WHEN YOU ARE'
+                                            : 'NOW PLAYING',
+                                        style: const TextStyle(
+                                          color: Color(0xFFD4FF22),
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        activeSound?.title ??
+                                            (_hasPlayed
+                                                ? 'Pick another reaction'
+                                                : 'Tap any pad to make some noise'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (activeSound != null)
+                                  Text(
+                                    _speed.label.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Color(0xFFB7BABE),
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: .6,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                           GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -617,8 +691,7 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                                   label: 'Surprise Me',
                                   icon: Icons.casino_rounded,
                                   filled: true,
-                                  onTap: () =>
-                                      _play(_random.nextInt(sounds.length)),
+                                  onTap: _surprise,
                                 ),
                               ),
                               const SizedBox(width: 11),
