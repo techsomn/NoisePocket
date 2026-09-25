@@ -1,0 +1,23 @@
+name: noise_pocket
+description: Twenty-six original sounds for instant reactions.
+publish_to: none
+version: 2.1.0+5
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^6.8.1
+  shared_preferences: ^2.5.3
+  google_mobile_ads: ^9.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/sounds/
