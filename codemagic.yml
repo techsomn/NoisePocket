@@ -1,0 +1,19 @@
+# Put this file at the repository root. The script accepts a Flutter project
+# either at the root or in a noise_pocket/ subfolder.
+workflows:
+  noise-pocket-test-apk:
+    name: Noise Pocket v2.1 test APK
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Build installable Android APK
+        script: |
+          if [ -f noise_pocket/pubspec.yaml ]; then cd noise_pocket; fi
+          flutter pub get
+          flutter build apk --debug --dart-define-from-file=config/admob.json
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - noise_pocket/build/app/outputs/flutter-apk/*.apk
