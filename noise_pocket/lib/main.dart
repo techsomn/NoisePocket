@@ -45,22 +45,28 @@ class NoisePocketApp extends StatelessWidget {
 
 class Sound {
   const Sound(this.title, this.file, this.padTitle, this.color,
-      {this.darkText = false});
+      {required this.icon, this.darkText = false});
   final String title;
   final String file;
   final String padTitle;
   final Color color;
+  final IconData icon;
   final bool darkText;
 }
 
 const sounds = <Sound>[
-  Sound('Air horn', 'air_horn.wav', 'AIR\nHORN', Color(0xFFFF5B3D)),
-  Sound('Fart', 'fart.wav', 'FART', Color(0xFFB45DF5)),
-  Sound('Sad trombone', 'sad_trombone.wav', 'SAD\nTROMBONE', Color(0xFF2E7DF2)),
+  Sound('Air horn', 'air_horn.wav', 'AIR\nHORN', Color(0xFFFF5B3D),
+      icon: Icons.campaign_rounded),
+  Sound('Fart', 'fart.wav', 'FART', Color(0xFFB45DF5),
+      icon: Icons.air_rounded),
+  Sound('Sad trombone', 'sad_trombone.wav', 'SAD\nTROMBONE', Color(0xFF2E7DF2),
+      icon: Icons.music_note_rounded),
   Sound('Ba dum tss', 'ba_dum_tss.wav', 'BA DUM\nTSS',
-      Color(0xFFFFC94F), darkText: true),
-  Sound('Crickets', 'crickets.wav', 'CRICKETS', Color(0xFF29C586)),
-  Sound('Laser / pew pew', 'laser.wav', 'LASER', Color(0xFFF53C8B)),
+      Color(0xFFFFC94F), icon: Icons.graphic_eq_rounded, darkText: true),
+  Sound('Crickets', 'crickets.wav', 'CRICKETS', Color(0xFF29C586),
+      icon: Icons.bug_report_rounded),
+  Sound('Laser / pew pew', 'laser.wav', 'LASER', Color(0xFFF53C8B),
+      icon: Icons.bolt_rounded),
 ];
 
 enum PlaybackSpeed {
@@ -490,11 +496,11 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                     final width = constraints.maxWidth;
                     final side = width < 370 ? 14.0 : 20.0;
                     final padHeight =
-                        ((constraints.maxHeight - (_showHint ? 250 : 205)) / 3)
-                            .clamp(112.0, 132.0)
+                        ((constraints.maxHeight - (_showHint ? 265 : 220)) / 3)
+                            .clamp(122.0, 145.0)
                             .toDouble();
                     return SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(side, 24, side, 16),
+                      padding: EdgeInsets.fromLTRB(side, 20, side, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -540,12 +546,13 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                           const Text(
                             'Small app. Big reactions.',
                             style: TextStyle(
-                              color: Color(0xFFAAAAB0),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontSize: 18,
+                              letterSpacing: -.35,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 13),
+                          const SizedBox(height: 16),
                           AnimatedSize(
                             duration: const Duration(milliseconds: 220),
                             curve: Curves.easeOut,
@@ -556,14 +563,17 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                                       horizontal: 15,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF303136),
+                                      color: const Color(0xFF2B3030),
                                       borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: const Color(0xFF41494A),
+                                      ),
                                     ),
                                     child: const Row(
                                       children: [
-                                        Text('👆',
-                                            style: TextStyle(fontSize: 24)),
-                                        SizedBox(width: 13),
+                                        Icon(Icons.touch_app_rounded,
+                                            size: 22, color: Color(0xFFD4FF22)),
+                                        SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
                                             'Tap any pad to make some noise',
@@ -659,13 +669,14 @@ class _SoundPadState extends State<SoundPad> {
   @override
   Widget build(BuildContext context) {
     final sound = widget.sound;
+    final ink = sound.darkText ? const Color(0xFF25221E) : Colors.white;
     return Semantics(
       button: true,
       selected: widget.active,
       label: '${sound.title}${widget.active ? ', playing' : ''}',
       child: AnimatedScale(
-        scale: _pressed ? .96 : 1,
-        duration: const Duration(milliseconds: 110),
+        scale: _pressed ? .95 : 1,
+        duration: const Duration(milliseconds: 130),
         curve: Curves.easeOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -678,52 +689,95 @@ class _SoundPadState extends State<SoundPad> {
                 Color.lerp(sound.color, Colors.black, .04)!,
               ],
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(26),
             border: Border.all(
               color: widget.active
                   ? const Color(0xFFD4FF22)
-                  : Colors.transparent,
-              width: widget.active ? 3 : 1,
+                  : Colors.white.withValues(alpha: .12),
+              width: widget.active ? 2.5 : 1,
             ),
             boxShadow: widget.active
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFD4FF22).withValues(alpha: .34),
-                      blurRadius: 14,
+                      color: const Color(0xFFD4FF22).withValues(alpha: .28),
+                      blurRadius: 16,
                       spreadRadius: 1,
                     ),
                   ]
-                : null,
+                : const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(27),
+              borderRadius: BorderRadius.circular(26),
               onHighlightChanged: (value) {
                 if (mounted) setState(() => _pressed = value);
               },
               onTap: widget.onTap,
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      sound.padTitle,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: sound.darkText
-                            ? const Color(0xFF25221E)
-                            : Colors.white,
-                        fontSize: sound.padTitle.contains('TROMBONE')
-                            ? 19
-                            : 23,
-                        height: .98,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -.4,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: ink.withValues(alpha: .17),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Icon(sound.icon, size: 20, color: ink),
+                        ),
+                        const Spacer(),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 160),
+                          child: widget.active
+                              ? Text(
+                                  'PLAYING',
+                                  key: const ValueKey('playing'),
+                                  style: TextStyle(
+                                    color: ink,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: .6,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.north_east_rounded,
+                                  key: const ValueKey('ready'),
+                                  size: 18,
+                                  color: ink.withValues(alpha: .7),
+                                ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        sound.padTitle,
+                        textAlign: TextAlign.left,
+                        style: TextStyle(
+                          color: ink,
+                          fontSize: sound.padTitle.contains('TROMBONE')
+                              ? 19
+                              : 22,
+                          height: .97,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -.5,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

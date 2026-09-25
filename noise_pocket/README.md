@@ -2,7 +2,7 @@
 
 An offline Flutter soundboard with six original, synthesized sound effects. One AdMob banner may appear on Android after Google's consent flow permits ads; sounds always work without internet. Web preview deliberately runs without the native ad SDK.
 
-The screen follows the supplied Noise Pocket reference: bright orange, purple, blue, yellow, green, and pink pads; lime active outline and Surprise Me button; and a dark Playback Settings sheet. Open the sheet with the sliders icon beside the logo. The first-use hint disappears after a sound is played. Ads are rendered only from AdMob; no ad artwork is hardcoded into the screen.
+The screen keeps the supplied Noise Pocket look: bright orange, purple, blue, yellow, green, and pink pads on charcoal, lime active outline and Surprise Me button, and a dark Playback Settings sheet. The pads now have clear icons and left-aligned labels. Open settings with the sliders icon beside the logo. The first-use hint disappears after a sound is played. Ads are rendered only from AdMob; no ad artwork is hardcoded into the screen.
 
 ## Build and install
 
@@ -23,8 +23,8 @@ In AdMob > Privacy & messaging, create and publish the applicable consent messag
 
 ## Sounds
 
-`assets/sounds/*.wav` contains 18 original, fixed recordings: each of the six effects has Slow, Normal, and Fast versions. The speed setting selects a bundled file with the same musical pitch; it never changes playback rate or generates a random sound at tap time. The effects are granted for commercial reuse without attribution. Recreate them using `python3 tool/generate_sounds.py` with NumPy and SciPy. The launcher icon is original and can be regenerated with `python3 tool/generate_icon.py` using Pillow.
+`assets/sounds/*.wav` contains 18 original, fixed recordings: each of the six effects has Slow, Normal, and Fast versions. All six were rebuilt for this version; Fart has stronger midrange so it is audible on small phone speakers. The speed setting selects a bundled file with the same musical pitch; it never changes playback rate or generates a random sound at tap time. The effects are granted for commercial reuse without attribution. Recreate them using `python3 tool/generate_sounds.py` with NumPy and SciPy, then check them with `python3 tool/check_sounds.py`. The launcher icon is original and can be regenerated with `python3 tool/generate_icon.py` using Pillow.
 
 ## Verification
 
-Run `flutter analyze`, `flutter test` and `flutter build apk --release --dart-define-from-file=config/admob.json`. On a real Android phone, tap each of the six pads at each speed, rapidly alternate them, try Surprise Me, Stop, and Volume, relaunch to verify saved settings, background during a sound to verify stop, then test with airplane mode and with/without consent. Switching speed while playing restarts the current effect using the selected recording. A browser preview verifies visuals and audio but cannot validate native AdMob or Android haptics. These audio changes have not been compiled or listened to on a device in this workspace; build and test the new version before distributing it.
+Run `python3 tool/check_sounds.py`, `flutter analyze`, `flutter test` and `flutter build apk --release --dart-define-from-file=config/admob.json`. On a real Android phone, tap each of the six pads at each speed, especially Fart on the phone speaker, rapidly alternate them, try Surprise Me, Stop, and Volume, relaunch to verify saved settings, background during a sound to verify stop, then test with airplane mode and with/without consent. Switching speed while playing restarts the current effect using the selected recording. A browser preview verifies visuals and audio but cannot validate native AdMob or Android haptics. These changes have not been compiled or listened to on a device in this workspace; build and test the new version before distributing it.
