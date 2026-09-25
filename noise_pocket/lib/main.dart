@@ -44,57 +44,23 @@ class NoisePocketApp extends StatelessWidget {
 }
 
 class Sound {
-  const Sound(this.title, this.file, this.icon, this.color, this.subtitle);
+  const Sound(this.title, this.file, this.padTitle, this.color,
+      {this.darkText = false});
   final String title;
   final String file;
-  final IconData icon;
+  final String padTitle;
   final Color color;
-  final String subtitle;
+  final bool darkText;
 }
 
 const sounds = <Sound>[
-  Sound(
-    'Air horn',
-    'air_horn.wav',
-    Icons.campaign_rounded,
-    Color(0xFFFBBE62),
-    'MAKE AN ENTRANCE',
-  ),
-  Sound(
-    'Fart',
-    'fart.wav',
-    Icons.air_rounded,
-    Color(0xFFB8F679),
-    'CLASSIC COMEDY',
-  ),
-  Sound(
-    'Sad trombone',
-    'sad_trombone.wav',
-    Icons.music_note_rounded,
-    Color(0xFF8BA9FF),
-    'WOMP WOMP',
-  ),
-  Sound(
-    'Ba dum tss',
-    'ba_dum_tss.wav',
-    Icons.album_rounded,
-    Color(0xFFFF9296),
-    'NICE ONE',
-  ),
-  Sound(
-    'Crickets',
-    'crickets.wav',
-    Icons.nights_stay_rounded,
-    Color(0xFFC6A8FF),
-    'TOUGH CROWD',
-  ),
-  Sound(
-    'Laser / pew pew',
-    'laser.wav',
-    Icons.bolt_rounded,
-    Color(0xFF70DCE1),
-    'PEW PEW',
-  ),
+  Sound('Air horn', 'air_horn.wav', 'AIR\nHORN', Color(0xFFFF5B3D)),
+  Sound('Fart', 'fart.wav', 'FART', Color(0xFFB45DF5)),
+  Sound('Sad trombone', 'sad_trombone.wav', 'SAD\nTROMBONE', Color(0xFF2E7DF2)),
+  Sound('Ba dum tss', 'ba_dum_tss.wav', 'BA DUM\nTSS',
+      Color(0xFFFFC94F), darkText: true),
+  Sound('Crickets', 'crickets.wav', 'CRICKETS', Color(0xFF29C586)),
+  Sound('Laser / pew pew', 'laser.wav', 'LASER', Color(0xFFF53C8B)),
 ];
 
 enum PlaybackSpeed {
@@ -123,12 +89,13 @@ class _SoundboardScreenState extends State<SoundboardScreen>
   Future<void> _audioQueue = Future.value();
   int _request = 0;
   int? _playing;
-  double _volume = .8;
+  double _volume = .7;
   PlaybackSpeed _speed = PlaybackSpeed.normal;
   bool _settingsTouched = false;
   bool _mayRequestAds = false;
   bool _adsInitializing = false;
   bool _showPrivacyOptions = false;
+  bool _showHint = true;
 
   @override
   void initState() {
@@ -167,7 +134,7 @@ class _SoundboardScreenState extends State<SoundboardScreen>
         return;
       }
       setState(() {
-        _volume = (prefs.getDouble('volume') ?? .8).clamp(0, 1);
+        _volume = (prefs.getDouble('volume') ?? .7).clamp(0, 1);
         _speed = PlaybackSpeed.values.firstWhere(
           (v) => v.name == prefs.getString('speed'),
           orElse: () => PlaybackSpeed.normal,
@@ -247,6 +214,7 @@ class _SoundboardScreenState extends State<SoundboardScreen>
 
   void _play(int index) {
     HapticFeedback.selectionClick();
+    if (_showHint) setState(() => _showHint = false);
     final request = ++_request;
     _audioQueue = _audioQueue
         .catchError((Object e) {
@@ -315,294 +283,351 @@ class _SoundboardScreenState extends State<SoundboardScreen>
     super.dispose();
   }
 
+  void _showSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: .64),
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, updateSheet) => SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF252629),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 29,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6F7074),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Playback Settings',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const Text(
+                  'Volume',
+                  style: TextStyle(color: Color(0xFFB4B5BA), fontSize: 12),
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.volume_up_rounded,
+                        color: Colors.white, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(sheetContext).copyWith(
+                          activeTrackColor: const Color(0xFFD4FF22),
+                          inactiveTrackColor: const Color(0xFF494B4F),
+                          thumbColor: const Color(0xFFD4FF22),
+                          overlayColor: const Color(0x33D4FF22),
+                          trackHeight: 4,
+                        ),
+                        child: Slider(
+                          value: _volume,
+                          onChanged: (value) {
+                            _settingsTouched = true;
+                            updateSheet(() => setState(() => _volume = value));
+                            if (_playing != null) {
+                              unawaited(_player.setVolume(value).catchError(
+                                (Object e) => debugPrint('Volume update: $e'),
+                              ));
+                            }
+                          },
+                          onChangeEnd: (value) => unawaited(
+                            _prefs?.setDouble('volume', value) ??
+                                Future.value(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '${(_volume * 100).round()}%',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Playback Speed',
+                  style: TextStyle(color: Color(0xFFB4B5BA), fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 39,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF35363A),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFF55565A)),
+                  ),
+                  child: Row(
+                    children: [
+                      for (final speed in PlaybackSpeed.values)
+                        Expanded(
+                          child: Semantics(
+                            button: true,
+                            selected: _speed == speed,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(22),
+                              onTap: () {
+                                _settingsTouched = true;
+                                updateSheet(
+                                  () => setState(() => _speed = speed),
+                                );
+                                if (_playing != null) {
+                                  unawaited(
+                                    _player
+                                        .setPlaybackRate(speed.rate)
+                                        .catchError((Object e) {
+                                      debugPrint('Speed update: $e');
+                                    }),
+                                  );
+                                }
+                                unawaited(
+                                  _prefs?.setString('speed', speed.name) ??
+                                      Future.value(),
+                                );
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: _speed == speed
+                                      ? const Color(0xFFD4FF22)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                child: Text(
+                                  speed.label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _speed == speed
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: _speed == speed
+                                        ? const Color(0xFF18191A)
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 43,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4FF22),
+                      foregroundColor: const Color(0xFF18191A),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final side = width < 370 ? 16.0 : 24.0;
-                  final padHeight = width < 370 ? 128.0 : 144.0;
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(side, 18, side, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'noise',
-                              style: TextStyle(
-                                fontSize: 27,
-                                letterSpacing: -1.8,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const Text(
-                              '.',
-                              style: TextStyle(
-                                fontSize: 30,
-                                height: .8,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFFBBF553),
-                              ),
-                            ),
-                            const Spacer(),
-                            if (_showPrivacyOptions)
-                              TextButton.icon(
-                                onPressed: _openPrivacyOptions,
-                                icon: const Icon(
-                                  Icons.shield_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text(
-                                  'Privacy choices',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: const Color(0xFFBBF553),
-                                ),
-                              ),
-                            const Icon(
-                              Icons.graphic_eq_rounded,
-                              color: Color(0xFFBBF553),
-                              size: 23,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Small app.\nBig reactions.',
-                          style: TextStyle(
-                            fontSize: 36,
-                            height: 1.02,
-                            letterSpacing: -1.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        const Text(
-                          'Tap a sound. Set the mood.',
-                          style: TextStyle(
-                            color: Color(0xFF98A1A1),
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: sounds.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                mainAxisExtent: padHeight,
-                              ),
-                          itemBuilder: (context, index) => SoundPad(
-                            sound: sounds[index],
-                            active: _playing == index,
-                            onTap: () => _play(index),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _ActionButton(
-                                label: 'Surprise me',
-                                icon: Icons.shuffle_rounded,
-                                filled: true,
-                                onTap: () =>
-                                    _play(_random.nextInt(sounds.length)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _ActionButton(
-                                label: 'Stop',
-                                icon: Icons.stop_rounded,
-                                filled: false,
-                                onTap: _stop,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1D2324),
-                            borderRadius: BorderRadius.circular(23),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF202123), Color(0xFF18191B)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final side = width < 370 ? 14.0 : 20.0;
+                    final padHeight =
+                        ((constraints.maxHeight - (_showHint ? 250 : 205)) / 3)
+                            .clamp(112.0, 132.0)
+                            .toDouble();
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(side, 24, side, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.volume_up_rounded,
-                                    color: Color(0xFFBBF553),
-                                    size: 21,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Volume',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    '${(_volume * 100).round()}%',
-                                    style: const TextStyle(
-                                      color: Color(0xFFB8C1BE),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  activeTrackColor: const Color(0xFFBBF553),
-                                  inactiveTrackColor: const Color(0xFF394140),
-                                  thumbColor: const Color(0xFFBBF553),
-                                  overlayColor: const Color(0x33BBF553),
-                                  trackHeight: 5,
-                                ),
-                                child: Slider(
-                                  value: _volume,
-                                  label: '${(_volume * 100).round()}%',
-                                  onChanged: (value) {
-                                    _settingsTouched = true;
-                                    setState(() => _volume = value);
-                                    if (_playing != null) {
-                                      unawaited(
-                                        _player.setVolume(value).catchError((
-                                          Object e,
-                                        ) {
-                                          debugPrint('Volume update: $e');
-                                        }),
-                                      );
-                                    }
-                                  },
-                                  onChangeEnd: (value) => unawaited(
-                                    _prefs?.setDouble('volume', value) ??
-                                        Future.value(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
                               const Text(
-                                'PLAYBACK SPEED',
+                                'noise',
                                 style: TextStyle(
-                                  color: Color(0xFF98A1A1),
-                                  fontSize: 11,
-                                  letterSpacing: 1.3,
-                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  fontSize: 27,
+                                  letterSpacing: -1.2,
+                                  fontWeight: FontWeight.w900,
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  for (final speed in PlaybackSpeed.values)
-                                    Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.only(
-                                          right: speed == PlaybackSpeed.fast
-                                              ? 0
-                                              : 8,
-                                        ),
-                                        child: ChoiceChip(
-                                          label: SizedBox(
-                                            width: double.infinity,
-                                            child: Text(
-                                              speed.label,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                          selected: _speed == speed,
-                                          onSelected: (_) {
-                                            _settingsTouched = true;
-                                            setState(() => _speed = speed);
-                                            if (_playing != null) {
-                                              unawaited(
-                                                _player
-                                                    .setPlaybackRate(speed.rate)
-                                                    .catchError((Object e) {
-                                                      debugPrint(
-                                                        'Speed update: $e',
-                                                      );
-                                                    }),
-                                              );
-                                            }
-                                            unawaited(
-                                              _prefs?.setString(
-                                                    'speed',
-                                                    speed.name,
-                                                  ) ??
-                                                  Future.value(),
-                                            );
-                                          },
-                                          showCheckmark: false,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 7,
-                                          ),
-                                          labelPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 0,
-                                              ),
-                                          backgroundColor: const Color(
-                                            0xFF303838,
-                                          ),
-                                          selectedColor: const Color(
-                                            0xFFBBF553,
-                                          ),
-                                          side: BorderSide.none,
-                                          labelStyle: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: _speed == speed
-                                                ? const Color(0xFF14200D)
-                                                : Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                              const Text(
+                                '.',
+                                style: TextStyle(
+                                  color: Color(0xFFD4FF22),
+                                  fontSize: 29,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_showPrivacyOptions)
+                                IconButton(
+                                  onPressed: _openPrivacyOptions,
+                                  tooltip: 'Privacy choices',
+                                  icon: const Icon(
+                                    Icons.shield_outlined,
+                                    color: Color(0xFFB4B5BA),
+                                  ),
+                                ),
+                              IconButton(
+                                onPressed: _showSettings,
+                                tooltip: 'Playback settings',
+                                icon: const Icon(
+                                  Icons.tune_rounded,
+                                  color: Color(0xFFB4B5BA),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        const Center(
-                          child: Text(
-                            'MADE FOR REACTIONS  •  WORKS OFFLINE',
+                          const Text(
+                            'Small app. Big reactions.',
                             style: TextStyle(
-                              color: Color(0xFF6E7977),
-                              fontSize: 10,
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFAAAAB0),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                          const SizedBox(height: 13),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            child: _showHint
+                                ? Container(
+                                    height: 46,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 15,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF303136),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Text('👆',
+                                            style: TextStyle(fontSize: 24)),
+                                        SizedBox(width: 13),
+                                        Expanded(
+                                          child: Text(
+                                            'Tap any pad to make some noise',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          if (_showHint) const SizedBox(height: 9),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: sounds.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              mainAxisExtent: padHeight,
+                            ),
+                            itemBuilder: (context, index) => SoundPad(
+                              sound: sounds[index],
+                              active: _playing == index,
+                              onTap: () => _play(index),
+                            ),
+                          ),
+                          const SizedBox(height: 17),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ActionButton(
+                                  label: 'Surprise Me',
+                                  icon: Icons.casino_rounded,
+                                  filled: true,
+                                  onTap: () =>
+                                      _play(_random.nextInt(sounds.length)),
+                                ),
+                              ),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: _ActionButton(
+                                  label: 'Stop',
+                                  icon: Icons.stop_rounded,
+                                  filled: false,
+                                  onTap: _stop,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-            if (_mayRequestAds && MediaQuery.sizeOf(context).width >= 320)
-              const _BannerSlot(),
-          ],
+              if (_mayRequestAds && MediaQuery.sizeOf(context).width >= 344)
+                const _BannerSlot(),
+            ],
+          ),
         ),
       ),
     );
@@ -629,31 +654,39 @@ class _SoundPadState extends State<SoundPad> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.sound.color;
+    final sound = widget.sound;
     return Semantics(
       button: true,
       selected: widget.active,
-      label: '${widget.sound.title}${widget.active ? ', playing' : ''}',
+      label: '${sound.title}${widget.active ? ', playing' : ''}',
       child: AnimatedScale(
         scale: _pressed ? .96 : 1,
         duration: const Duration(milliseconds: 110),
         curve: Curves.easeOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 170),
+          duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
-            color: widget.active
-                ? accent.withValues(alpha: .30)
-                : accent.withValues(alpha: .14),
-            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.lerp(sound.color, Colors.white, .05)!,
+                Color.lerp(sound.color, Colors.black, .04)!,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: widget.active ? accent : accent.withValues(alpha: .24),
-              width: widget.active ? 2 : 1,
+              color: widget.active
+                  ? const Color(0xFFD4FF22)
+                  : Colors.transparent,
+              width: widget.active ? 3 : 1,
             ),
             boxShadow: widget.active
                 ? [
                     BoxShadow(
-                      color: accent.withValues(alpha: .2),
-                      blurRadius: 20,
+                      color: const Color(0xFFD4FF22).withValues(alpha: .34),
+                      blurRadius: 14,
+                      spreadRadius: 1,
                     ),
                   ]
                 : null,
@@ -661,69 +694,32 @@ class _SoundPadState extends State<SoundPad> {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(23),
-              onHighlightChanged: (value) => setState(() => _pressed = value),
+              borderRadius: BorderRadius.circular(27),
+              onHighlightChanged: (value) {
+                if (mounted) setState(() => _pressed = value);
+              },
               onTap: widget.onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 43,
-                          height: 43,
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: .22),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            widget.sound.icon,
-                            color: accent,
-                            size: 26,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (widget.active)
-                          Icon(
-                            Icons.graphic_eq_rounded,
-                            color: accent,
-                            size: 22,
-                          ),
-                      ],
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      sound.padTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: sound.darkText
+                            ? const Color(0xFF25221E)
+                            : Colors.white,
+                        fontSize: sound.padTitle.contains('TROMBONE')
+                            ? 19
+                            : 23,
+                        height: .98,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.4,
+                      ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.sound.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            height: 1.1,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.sound.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: accent,
-                            fontSize: 9,
-                            letterSpacing: .55,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -748,25 +744,29 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 53,
-    child: FilledButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 20),
-      label: Text(
-        label,
-        maxLines: 1,
-        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-      ),
-      style: FilledButton.styleFrom(
-        backgroundColor: filled
-            ? const Color(0xFFBBF553)
-            : const Color(0xFF282E2E),
-        foregroundColor: filled ? const Color(0xFF14200D) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
-        padding: const EdgeInsets.symmetric(horizontal: 5),
-      ),
-    ),
-  );
+        height: 50,
+        child: FilledButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 18),
+          label: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor:
+                filled ? const Color(0xFFD4FF22) : Colors.transparent,
+            foregroundColor:
+                filled ? const Color(0xFF1D1E20) : Colors.white,
+            side: filled
+                ? BorderSide.none
+                : const BorderSide(color: Color(0xFF77787B)),
+            shape: const StadiumBorder(),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
+      );
 }
 
 class _BannerSlot extends StatefulWidget {
@@ -818,29 +818,20 @@ class _BannerSlotState extends State<_BannerSlot> {
     if (!_loaded || ad == null) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
       decoration: const BoxDecoration(
-        color: Color(0xFF1D2324),
-        border: Border(top: BorderSide(color: Color(0xFF353E3D))),
+        color: Color(0xFF1B1C1E),
+        border: Border(top: BorderSide(color: Color(0xFF38393C))),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'ADVERTISEMENT',
-            style: TextStyle(
-              color: Color(0xFF89918E),
-              fontSize: 9,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SizedBox(
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: SizedBox(
             width: ad.size.width.toDouble(),
             height: ad.size.height.toDouble(),
             child: AdWidget(ad: ad),
           ),
-        ],
+        ),
       ),
     );
   }

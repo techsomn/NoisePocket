@@ -2,6 +2,8 @@
 
 An offline Flutter soundboard with six original, synthesized sound effects. One AdMob banner may appear on Android after Google's consent flow permits ads; sounds always work without internet. Web preview deliberately runs without the native ad SDK.
 
+The screen follows the supplied Noise Pocket reference: bright orange, purple, blue, yellow, green, and pink pads; lime active outline and Surprise Me button; and a dark Playback Settings sheet. Open the sheet with the sliders icon beside the logo. The first-use hint disappears after a sound is played. Ads are rendered only from AdMob; no ad artwork is hardcoded into the screen.
+
 ## Build and install
 
 Use Flutter **3.38.1+**, Android SDK, and Java 17. From this directory:
@@ -25,4 +27,4 @@ In AdMob > Privacy & messaging, create and publish the applicable consent messag
 
 ## Verification
 
-Run `flutter analyze`, `flutter test` and `flutter build apk --release --dart-define-from-file=config/admob.json`. On a real Android phone, tap each of the six pads, rapidly alternate them, try Surprise me, Stop, Slow/Normal/Fast and Volume, relaunch to verify saved settings, background during a sound to verify stop, then test with airplane mode and with/without consent. A browser preview verifies visuals and audio but cannot validate native AdMob or Android haptics. This project was checked for all six playable PCM assets, matching asset references, and AdMob test configuration. The Flutter command was stopped by an environment security check before dependency resolution, so analyzer, Flutter tests, APK build, and on-device behavior still require verification on your machine.
+Run `flutter analyze`, `flutter test` and `flutter build apk --release --dart-define-from-file=config/admob.json`. On a real Android phone, tap each of the six pads, rapidly alternate them, try Surprise Me, Stop, settings, Slow/Normal/Fast and Volume, relaunch to verify saved settings, background during a sound to verify stop, then test with airplane mode and with/without consent. A browser preview verifies visuals and audio but cannot validate native AdMob or Android haptics. The source and bundled assets were checked, but this revised UI has not been compiled or tested on a device in this workspace; build the new version before installing it.
