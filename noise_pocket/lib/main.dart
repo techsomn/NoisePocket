@@ -73,6 +73,16 @@ enum PlaybackSpeed {
   final String label;
 }
 
+String soundAsset(Sound sound, PlaybackSpeed speed) {
+  final name = sound.file.substring(0, sound.file.length - '.wav'.length);
+  final suffix = switch (speed) {
+    PlaybackSpeed.slow => '_slow',
+    PlaybackSpeed.normal => '',
+    PlaybackSpeed.fast => '_fast',
+  };
+  return 'sounds/$name$suffix.wav';
+}
+
 class SoundboardScreen extends StatefulWidget {
   const SoundboardScreen({super.key});
 
@@ -110,7 +120,11 @@ class _SoundboardScreenState extends State<SoundboardScreen>
     // AudioCache prepares local files for the first tap. Playback also works if preload fails.
     unawaited(
       _player.audioCache
-          .loadAll([for (final sound in sounds) 'sounds/${sound.file}'])
+          .loadAll([
+            for (final sound in sounds)
+              for (final speed in PlaybackSpeed.values)
+                soundAsset(sound, speed),
+          ])
           .then(
             (_) {},
             onError: (Object e) {
@@ -212,8 +226,8 @@ class _SoundboardScreenState extends State<SoundboardScreen>
     });
   }
 
-  void _play(int index) {
-    HapticFeedback.selectionClick();
+  void _play(int index, {bool haptic = true}) {
+    if (haptic) HapticFeedback.selectionClick();
     if (_showHint) setState(() => _showHint = false);
     final request = ++_request;
     _audioQueue = _audioQueue
@@ -225,14 +239,9 @@ class _SoundboardScreenState extends State<SoundboardScreen>
           await _player.stop();
           if (!mounted || request != _request) return;
           await _player.play(
-            AssetSource('sounds/${sounds[index].file}'),
+            AssetSource(soundAsset(sounds[index], _speed)),
             volume: _volume,
           );
-          if (!mounted || request != _request) {
-            await _player.stop();
-            return;
-          }
-          await _player.setPlaybackRate(_speed.rate);
           if (!mounted || request != _request) {
             await _player.stop();
             return;
@@ -399,14 +408,9 @@ class _SoundboardScreenState extends State<SoundboardScreen>
                                 updateSheet(
                                   () => setState(() => _speed = speed),
                                 );
-                                if (_playing != null) {
-                                  unawaited(
-                                    _player
-                                        .setPlaybackRate(speed.rate)
-                                        .catchError((Object e) {
-                                      debugPrint('Speed update: $e');
-                                    }),
-                                  );
+                                final playing = _playing;
+                                if (playing != null) {
+                                  _play(playing, haptic: false);
                                 }
                                 unawaited(
                                   _prefs?.setString('speed', speed.name) ??
